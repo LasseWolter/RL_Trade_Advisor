@@ -64,7 +64,7 @@ def getOffers():
     base_url = "https://rocket-league.com/trading?filterItem=1159&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
     offs = {}
     # Just one page right now
-    max_page = 9
+    max_page = 1
 
     # iterate over all pages
     for i in range (0,max_page):
@@ -96,3 +96,11 @@ def getOffers():
 def printDict(d):
     for link in d:
         print link, d[link] 
+
+# sort dict by amount of item (used in the query) in ascending order
+def sortDict(d):
+    for link in d:
+        d[link] = sorted(d[link], key=lambda x: x[1][1])     # the lambda expression filters out the amount of the item
+        d[link].append(min(d[link], key=lambda x: x[1][1])[1][1] # appends the minimum amount of all oneToOnes
+    
+    d = sorted(d.iteritems(), key=lambda (x,y): (y[-1],x))
