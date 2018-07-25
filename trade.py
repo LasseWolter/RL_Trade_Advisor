@@ -2,11 +2,37 @@ from lxml import html
 import requests
 from enum import Enum
 
-# Enumeration for the side of the offer
-class Side(Enum):
-    HAS = 1
-    WANTS = 2
+# encoding=utf8
+import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
 
+# Enumeration for the side of the offer - placeholder for id
+class Side(Enum):
+    HAS = "rlg-youritems"
+    WANTS = "rlg-theiritems"
+
+class Item:
+    def __init__(self, name, amount=1, colour=""):
+        self.name = name
+        self.amount = amount
+        self.colour = colour
+
+    def __repr__(self):
+        out = "{} {}".format(self.amount, self.name)
+        return out
+
+
+# Class representing a one-to-one offer
+class Offer:
+    def __init__(self, has, wants, link):
+        self.has = has
+        self.wants = wants
+        self.link = link
+
+    def __repr__(self):
+        out = "{} - {} vs. {}\n".format(self.link, self.has, self.wants)
+        return out
 
 # Round floating point number to 2 digits
 def roundTo2Dig(num):
@@ -36,13 +62,7 @@ def getPrices():
 # Get items from particular side for particular offer
 def getItems(offer, side):
     items=[]
-
-    if side == Side.HAS:
-        item_paths = offer.xpath('.//*[@id="rlg-youritems"]//*[@class="rlg-trade-display-item rlg-trade-display-item-read"]')
-    elif side == Side.WANTS:
-        item_paths = offer.xpath('.//*[@id="rlg-theiritems"]//*[@class="rlg-trade-display-item rlg-trade-display-item-read"]')    
-    else:
-        raise ValueError("Invalid offer side")
+    item_paths = offer.xpath('.//*[@id="' + side.value + '"]//*[@class="rlg-trade-display-item rlg-trade-display-item-read"]')
 
     for i in item_paths:
         name = i.xpath('.//img/@alt')
@@ -50,21 +70,25 @@ def getItems(offer, side):
             name = name[0]
         else:
             name = ''
-        num_str = i.xpath('.//*[contains(@class,"rlg-trade-display-item__amount")]/text()')     # contains has to be used since the class contains the rarity of the item ("rare, "premium",etc)
+        # contains has to be used since the class contains the rarity of the item ("rare, "premium",etc)
+        num_str = i.xpath('.//*[contains(@class,"rlg-trade-display-item__amount")]/text()')     
         if (num_str == []): # if the amount is not given it's 1 item
             num = 1
         else: 
             num = int(num_str[0]) # index 0 because num_str is a list of one string
 
-        item = (name, num)
+        item = Item(name, num)
         items.append(item)
     return items
 
 def getOffers():
-    base_url = "https://rocket-league.com/trading?filterItem=1159&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
+    #triumphbase_url = "https://rocket-league.com/trading?filterItem=1159&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
+    #overdrivebase_url = "https://rocket-league.com/trading?filterItem=671&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
+    base_url = "https://rocket-league.com/trading?filterItem=1298&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
     offs = {}
     # Just one page right now
-    max_page = 1
+    max_page = 48
+    offList = []
 
     # iterate over all pages
     for i in range (0,max_page):
@@ -79,28 +103,26 @@ def getOffers():
             link = o.xpath('./div[@class="rlg-trade-display-header"]/a/@href')
             link_str = "https://rocket-league.com/" + link[0]
 
-            # Get items on 'Has'-side in offer o  
+            # Get items on 'Has'- and 'Wants'-side of the offer o  
             itemsHas = getItems(o, Side.HAS)
             itemsWants = getItems(o, Side.WANTS)
-            oneToOne = []
-            relOffers = []
+
+            # If the offer is a possible 1:1 create cor. 1:1-offers
             if len(itemsHas) == len(itemsWants):
                 oneToOne = zip(itemsHas, itemsWants)
-                for off in oneToOne:
-                    if off[1][0] == "Triumph Crate":
-                        relOffers.append(off)
-            if not relOffers == []:
-                offs[link_str] = relOffers
-    return offs
-
-def printDict(d):
-    for link in d:
-        print link, d[link] 
+                for i in oneToOne:
+                    if i[1].name == "Golden Egg": #"Overdrive Crate":#"Triumph Crate":
+                        off = Offer(i[0], i[1], link_str)
+                        offList.append(off)
+    return offList
 
 # sort dict by amount of item (used in the query) in ascending order
-def sortDict(d):
-    for link in d:
-        d[link] = sorted(d[link], key=lambda x: x[1][1])     # the lambda expression filters out the amount of the item
-        d[link].append(min(d[link], key=lambda x: x[1][1])[1][1] # appends the minimum amount of all oneToOnes
+def sortOffers(offers):
+    offers = sorted(offers, key=lambda x: x.wants.amount)     # the lambda expression filters out the amount of the item
     
-    d = sorted(d.iteritems(), key=lambda (x,y): (y[-1],x))
+    return offers
+
+if __name__ == '__main__':
+   o = getOffers()
+   s = sortOffers(o)
+   print(s)
