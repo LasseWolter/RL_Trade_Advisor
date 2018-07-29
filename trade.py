@@ -4,8 +4,7 @@ from enum import Enum
 
 # encoding=utf8
 import sys
-reload(sys)
-sys.setdefaultencoding('utf8')
+#sys.setdefaultencoding('utf8')
 
 # Enumeration for the side of the offer - placeholder for id
 class Side(Enum):
@@ -59,9 +58,24 @@ def getPrices():
         prices[element[0]] = av_price
     return prices
 
+def getIndex():
+    # Dictionary that maps items to the corresponding index
+    index = {}
+    url = "https://rocket-league.com/trading"
+
+    # Make the request and create corresponding e_tree
+    ind_html = requests.get(url)
+    tree = html.fromstring(ind_html.content)
+
+    # Find the list of items and their indices and iterate over them
+    items = tree.xpath('//*[@class="rlg-select" and @id="filterItem"]/*/*')
+    for item in items:
+        index[item.text] = item.get('value')
+    return index
+
 def getMaxPage(tree):
-    num = tree.xpath('//*[@class="rlg-trade-pagination-button rlg-trade-pagination-button-end"]/text()')
-    return int(num[0])
+    num = tree.xpath('//*[@class="rlg-trade-pagination-button"]/text()')
+    return int(max(num, key=lambda num:int(num)))
 
 # Get items from particular side for particular offer
 def getItems(offer, side):
@@ -85,17 +99,14 @@ def getItems(offer, side):
         items.append(item)
     return items
 
-def getOffers():
-    #triumphbase_url = "https://rocket-league.com/trading?filterItem=1159&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
-    #overdrivebase_url = "https://rocket-league.com/trading?filterItem=671&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
-    base_url = "https://rocket-league.com/trading?filterItem=1298&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
+def getOffers(url, item):
     offList = []
 
     # Start on the first page to check how many pages there are
-    trade_html = requests.get(base_url + str(1))
+    trade_html = requests.get(url + str(1))
     trade_tree = html.fromstring(trade_html.content)
     max_page = getMaxPage(trade_tree)
-    
+
     # Iterate over all pages
     for i in range (0,max_page):
         trade_url = base_url + str(i)
@@ -118,7 +129,7 @@ def getOffers():
             if len(itemsHas) == len(itemsWants):
                 oneToOne = zip(itemsHas, itemsWants)
                 for i in oneToOne:
-                    if i[1].name == "Golden Egg": #"Overdrive Crate":#"Triumph Crate":
+                    if i[1].name == item: 
                         off = Offer(i[0], i[1], link_str)
                         offList.append(off)
     return offList
@@ -130,6 +141,18 @@ def sortOffers(offers):
     return offers
 
 if __name__ == '__main__':
-   o = getOffers()
-   s = sortOffers(o)
-   print(s)
+    index = getIndex()
+
+    # Iterate until valid item was entered
+    while(True):
+        item_str = input("Which item would you like to offer? ")
+        try:
+            item_ind = index[item_str]
+            break
+        except KeyError as err:
+            print("There is no such item - please try again")
+    
+    base_url = "https://rocket-league.com/trading?filterItem=" + item_ind +"&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
+    o = getOffers(base_url, item_str)
+    s = sortOffers(o)
+    print(s)
