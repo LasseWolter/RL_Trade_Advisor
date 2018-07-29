@@ -59,6 +59,10 @@ def getPrices():
         prices[element[0]] = av_price
     return prices
 
+def getMaxPage(tree):
+    num = tree.xpath('//*[@class="rlg-trade-pagination-button rlg-trade-pagination-button-end"]/text()')
+    return int(num[0])
+
 # Get items from particular side for particular offer
 def getItems(offer, side):
     items=[]
@@ -85,18 +89,21 @@ def getOffers():
     #triumphbase_url = "https://rocket-league.com/trading?filterItem=1159&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
     #overdrivebase_url = "https://rocket-league.com/trading?filterItem=671&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
     base_url = "https://rocket-league.com/trading?filterItem=1298&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
-    offs = {}
-    # Just one page right now
-    max_page = 48
     offList = []
 
-    # iterate over all pages
+    # Start on the first page to check how many pages there are
+    trade_html = requests.get(base_url + str(1))
+    trade_tree = html.fromstring(trade_html.content)
+    max_page = getMaxPage(trade_tree)
+    
+    # Iterate over all pages
     for i in range (0,max_page):
         trade_url = base_url + str(i)
         # Get Items you can get for triumph crate
         trade_html = requests.get(trade_url)
         trade_tree = html.fromstring(trade_html.content)
 
+        # Find offers in tree structure and iterate over them       
         offers = trade_tree.xpath('//*[@class="rlg-trade-display-container is--user"]')
         for o in offers:
             # Get offer link
