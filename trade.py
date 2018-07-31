@@ -75,6 +75,7 @@ def getIndex():
 
 def getMaxPage(tree):
     num = tree.xpath('//*[@class="rlg-trade-pagination-button"]/text()')
+    num.append('0')     # to make sure that there is at least one number in case no results are found
     return int(max(num, key=lambda num:int(num)))
 
 # Get items from particular side for particular offer
@@ -109,8 +110,8 @@ def getOffers(url, item):
 
     # Iterate over all pages
     for i in range (0,max_page):
+        print("Processing Page " + str(i) + "...")
         trade_url = base_url + str(i)
-        # Get Items you can get for triumph crate
         trade_html = requests.get(trade_url)
         trade_tree = html.fromstring(trade_html.content)
 
@@ -141,8 +142,11 @@ def sortOffers(offers):
     return offers
 
 if __name__ == '__main__':
-    index = getIndex()
-
+    while True:
+        index = getIndex()
+        if index != {}:
+            break
+    
     # Iterate until valid item was entered
     while(True):
         item_str = input("Which item would you like to offer? ")
