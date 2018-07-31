@@ -16,9 +16,18 @@ class Item:
         self.name = name
         self.amount = amount
         self.colour = colour
+        self.price = 0.0
+
+    def getPrice(self, price):
+        if self.name in price:
+            self.price = roundTo2Dig(price[self.name] * self.amount)
+        # Have to find better solution - just a quick fix
+        elif self.name == "Key":    
+            self.price = 1.0 * self.amount
+        return self.price
 
     def __repr__(self):
-        out = "{} {}".format(self.amount, self.name)
+        out = "{} {} ({})".format(self.amount, self.name, self.price)
         return out
 
 
@@ -54,7 +63,7 @@ def getPrices():
             av_price = ( float(range_str[0]) + float(range_str[2]) ) / 2.0 
             av_price = roundTo2Dig(av_price)
         else:
-            av_price = 0
+            av_price = 0.0
         prices[element[0]] = av_price
     return prices
 
@@ -79,7 +88,7 @@ def getMaxPage(tree):
     return int(max(num, key=lambda num:int(num)))
 
 # Get items from particular side for particular offer
-def getItems(offer, side):
+def getItems(offer, side, price):
     items=[]
     item_paths = offer.xpath('.//*[@id="' + side.value + '"]//*[@class="rlg-trade-display-item rlg-trade-display-item-read"]')
 
@@ -97,10 +106,11 @@ def getItems(offer, side):
             num = int(num_str[0]) # index 0 because num_str is a list of one string
 
         item = Item(name, num)
+        item.getPrice(price)
         items.append(item)
     return items
 
-def getOffers(url, item):
+def getOffers(url, item, price):
     offList = []
 
     # Start on the first page to check how many pages there are
@@ -123,8 +133,8 @@ def getOffers(url, item):
             link_str = "https://rocket-league.com/" + link[0]
 
             # Get items on 'Has'- and 'Wants'-side of the offer o  
-            itemsHas = getItems(o, Side.HAS)
-            itemsWants = getItems(o, Side.WANTS)
+            itemsHas = getItems(o, Side.HAS, price)
+            itemsWants = getItems(o, Side.WANTS, price)
 
             # If the offer is a possible 1:1 create cor. 1:1-offers
             if len(itemsHas) == len(itemsWants):
@@ -136,12 +146,29 @@ def getOffers(url, item):
     return offList
 
 # sort dict by amount of item (used in the query) in ascending order
-def sortOffers(offers):
-    offers = sorted(offers, key=lambda x: x.wants.amount)     # the lambda expression filters out the amount of the item
-    
-    return offers
+def sortOffers(offers, price):
+    sorted_offs = {}
+    # Separate one list into dict with the different amounts as keys and offer-lists as values
+    for o in offers:
+        if o.wants.amount not in sorted_offs:
+            sorted_offs[o.wants.amount] = [o]
+        else:
+            sorted_offs[o.wants.amount].append(o)
 
+    # Now sort each offer-list in dict by price (high-to-low)
+    for off in sorted_offs:
+        sorted_offs[off] = sorted(sorted_offs[off], key= lambda x: x.has.price, reverse=True)
+
+    return sorted_offs
+
+# ------------------------------------------------------------------------------
+# MAIN
 if __name__ == '__main__':
+    while True:
+        price = getPrices()
+        if price != {}:
+            break
+    
     while True:
         index = getIndex()
         if index != {}:
@@ -157,6 +184,6 @@ if __name__ == '__main__':
             print("There is no such item - please try again")
     
     base_url = "https://rocket-league.com/trading?filterItem=" + item_ind +"&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
-    o = getOffers(base_url, item_str)
-    s = sortOffers(o)
+    o = getOffers(base_url, item_str, price)
+    s = sortOffers(o, price)
     print(s)
