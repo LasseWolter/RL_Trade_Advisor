@@ -27,7 +27,7 @@ class Item:
         return self.price
 
     def __repr__(self):
-        out = "{} {} ({})".format(self.amount, self.name, self.price)
+        out = "{} {} {} ({})".format(self.amount, self.colour, self.name, self.price)
         return out
 
 
@@ -83,7 +83,8 @@ def getIndex():
     return index
 
 def getMaxPage(tree):
-    num = tree.xpath('//*[@class="rlg-trade-pagination-button"]/text()')
+    # Contains since it can also be "rlg-trade-pagination-button rlg-trade-pagination-button-end" if there are lots of pages
+    num = tree.xpath('//*[contains(@class,"rlg-trade-pagination-button")]/text()')
     num.append('0')     # to make sure that there is at least one number in case no results are found
     return int(max(num, key=lambda num:int(num)))
 
@@ -100,12 +101,19 @@ def getItems(offer, side, price):
             name = ''
         # contains has to be used since the class contains the rarity of the item ("rare, "premium",etc)
         num_str = i.xpath('.//*[contains(@class,"rlg-trade-display-item__amount")]/text()')     
-        if (num_str == []): # if the amount is not given it's 1 item
+        if num_str == []: # if the amount is not given it's 1 item
             num = 1
         else: 
             num = int(num_str[0]) # index 0 because num_str is a list of one string
 
-        item = Item(name, num)
+        colour = i.xpath('.//*[@class="rlg-trade-display-item-paint"]/@data-name')
+        # Keys cannot have colours
+        if colour == [] or name == "Key":
+            colour = ""
+        else:
+            colour = colour[0]
+
+        item = Item(name, num, colour)
         item.getPrice(price)
         items.append(item)
     return items
@@ -120,8 +128,8 @@ def getOffers(url, item, price):
 
     # Iterate over all pages
     for i in range (0,max_page):
-        print("Processing Page " + str(i) + "...")
-        trade_url = base_url + str(i)
+        print("Processing Page " + str(i) + " of " + str(max_page) + "...")
+        trade_url = url + str(i)
         trade_html = requests.get(trade_url)
         trade_tree = html.fromstring(trade_html.content)
 
