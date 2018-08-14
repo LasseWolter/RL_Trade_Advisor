@@ -39,7 +39,7 @@ class Offer:
         self.link = link
 
     def __repr__(self):
-        out = "{} - {} vs. {}\n".format(self.link, self.has, self.wants)
+        out = "{} - {} vs. {}".format(self.link, self.has, self.wants)
         return out
 
 # Round floating point number to 2 digits
@@ -169,6 +169,15 @@ def sortOffers(offers, price):
 
     return sorted_offs
 
+# Pretty print for the dict that is used for the output of the offers
+def prettyPrint(d, item):
+    for key in d.keys():
+        print("-------------------- {} {} --------------------".format(str(key), item))
+        for entry in d[key]:
+            print(entry)        
+
+        
+
 # ------------------------------------------------------------------------------
 # MAIN
 if __name__ == '__main__':
@@ -194,4 +203,4 @@ if __name__ == '__main__':
     base_url = "https://rocket-league.com/trading?filterItem=" + item_ind +"&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
     o = getOffers(base_url, item_str, price)
     s = sortOffers(o, price)
-    print(s)
+    prettyPrint(s, item_str)
