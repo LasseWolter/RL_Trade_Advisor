@@ -9,13 +9,14 @@ import sys, os, re
 
 # Global Variables
 # Settings
-ONLYRECENT = False
-ONLYDIRECT = True
+VIEWRECENT = False
+ONLYDIRECT = False
 
 # Other
-offers_list = []
-item_str = ""
-price_ind = {}
+OFFERS_LIST = []
+PRICE_IND = {}
+CURFILE = 0
+CURITEM = ""
 
 # Enumeration for the side of the offer - placeholder for id
 class Side(Enum):
@@ -131,7 +132,7 @@ def getItems(offer, side, price):
         items.append(item)
     return items
 
-def getOffers(url, item, price):
+def getOffers(url, price):
     offList = []
 
     # Start on the first page to check how many pages there are
@@ -174,23 +175,23 @@ def getOffers(url, item, price):
             if len(itemsHas) == len(itemsWants):
                 oneToOne = zip(itemsHas, itemsWants)
                 for i in oneToOne:
-                    if i[1].name == item:
+                    if i[1].name == CURITEM:
                         off = Offer(i[0], i[1], link_str, note, lastAct)
                         offList.append(off)
     return offList
 
 
 # sort dict by amount of item (used in the query) in ascending order
-def sortOffers(offers, price, ONLYRECENT, ONLYDIRECT):
+def sortOffers(offers, price, VIEWRECENT, ONLYDIRECT):
     sorted_offs = {}
     # Separate one list into dict with the different amounts as keys and offer-lists as values
     for o in offers:
-        if ONLYRECENT:
+        if VIEWRECENT:
             if not ("minute" in o.lastAct or "second" in o.lastAct):
                 continue
         
         if ONLYDIRECT:
-            if re.match("(\d+)[:\-;](\d+)", o.note) == None:
+            if re.match(r"(\d+)[:\-;](\d+)", o.note) == None:
                 continue
 
         if o.wants.amount not in sorted_offs:
@@ -205,67 +206,35 @@ def sortOffers(offers, price, ONLYRECENT, ONLYDIRECT):
     return sorted_offs
 
 # Pretty print for the dict that is used for the output of the offers
-def prettyPrint(d, item):
+def prettyPrint(d):
+    global CURFILE
+    f = open("{}{}.txt".format(CURITEM, str(CURFILE)),"w+")
+    f.write("Settings for this file: \nOnlyDirectOffers: {}\nViewRecentOffers: {}\n\n\n".format(str(ONLYDIRECT), str(VIEWRECENT)))
     for key in d.keys():
-        print("-------------------- {} {} --------------------".format(str(key), item))
+        f.write("\n-------------------- {} {} --------------------\n".format(str(key), CURITEM))
+        print("\n-------------------- {} {} --------------------".format(str(key), CURITEM))
         for entry in d[key]:
+            f.write(str(entry) + "\n")
             print(entry)        
-
-        
-
-
+    f.close()
+    CURFILE += 1
 
 # ------------------------------------------------------------------------------
 # MENU
+# ------------------------------------------------------------------------------
 
 # Main menu
 def mainMenu():
     print ("Welcome to Main Menu,\n")
-    print ("Please choose the menu you want to start:")
+    print ("Please choose the what you want to do:")
     print ("1. Find Offers")
     print ("2. Print Offers")
-    print ("3. Settings")
+    print ("3. Toggle ViewDirectOffers")
+    print ("4. Toggle ViewRecentOffers")
     print ("\n0. Quit")
     choice = input(" >>  ")
     execMenu(choice)
     return
-
-# Main Menu functions
-def exit():
-    sys.exit()
-
-def findOffers():
-    global offers_list 
-    # Get Item Index
-    while True:
-        it_index = getIndex()
-        if it_index != {}:
-            break
-    
-    # Iterate until valid item was entered
-    while(True):
-        item_str = input("Which item would you like to offer? ")
-        try:
-            item_ind = it_index[item_str]
-            break
-        except KeyError:
-            print("There is no such item - please try again")
-    
-    base_url = "https://rocket-league.com/trading?filterItem=" + item_ind +"&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
-
-    offers_list = getOffers(base_url, item_str, price_ind)
-    printOffs()
-
-def printOffs():
-    s = sortOffers(offers_list, price_ind, ONLYRECENT, ONLYDIRECT)
-    prettyPrint(s, item_str)
-    
-    print('\n\n\n')
-    mainMenu()
-
-def settings():
-    os.system("clear")
-    settingsMenu()
 
 # Execute main menu
 def execMenu(choice):
@@ -281,89 +250,86 @@ def execMenu(choice):
             menuActions['mainMenu']()
     return
 
+# MAIN MENU FUNCTIONS
+# Function that finds offers for a corresponding item
+def findOffers():
+    global CURITEM
+    global OFFERS_LIST 
+    # Get Item Index
+    while True:
+        it_index = getIndex()
+        if it_index != {}:
+            break
+    
+    # Iterate until valid item was entered
+    while(True):
+        item_str = input("Which item would you like to offer? ")
+        try:
+            item_ind = it_index[item_str]
+            CURITEM = item_str
+            break
+        except KeyError:
+            print("There is no such item - please try again")
+    
+    base_url = "https://rocket-league.com/trading?filterItem=" + item_ind +"&filterCertification=0&filterPaint=0&filterPlatform=2&filterSearchType=2&p="
+
+    OFFERS_LIST = getOffers(base_url, PRICE_IND)
+    printOffs()
+
+# Print list of offers to console
+def printOffs():
+    s = sortOffers(OFFERS_LIST, PRICE_IND, VIEWRECENT, ONLYDIRECT)
+    prettyPrint(s)
+
+    print('\n\n')
+    mainMenu()
+
+# Toggle DirectOffers setting
+def changeDirOffer():
+    global ONLYDIRECT
+    if ONLYDIRECT == False:
+        ONLYDIRECT = True
+        print("OnlyDirectOffers was set to TRUE\n")
+    else:
+        ONLYDIRECT = False
+        print("OnlyDirectOffers was set to FALSE\n")
+    
+    mainMenu()
+
+# Toggle the ViewRecent setting
+def changeViewRecent():
+    global VIEWRECENT
+    if VIEWRECENT == False:
+        VIEWRECENT = True
+        print("ViewRecent was set to TRUE\n")
+    else:
+        VIEWRECENT = False
+        print("ViewRecent was set to FALSE\n")
+
+    mainMenu()
+
+def exit():
+    sys.exit()
+
 # Menu definitions
 menuActions = {
     "mainMenu": mainMenu,
     '1': findOffers,
     '2': printOffs,
-    '3': settings,
+    '3': changeDirOffer,
+    '4': changeViewRecent,
     '0': exit
 }
-
-# SETTINGS MENU
-def settingsMenu():
-    print ("Welcome to settings,\n")
-    print ("Please choose the setting you want to change:")
-    print ("1. search Offer Notes")
-    print ("2. only Recent Offers")
-    print ("\n0. Back to Main Menu")
-    choice = input(" >>  ")
-    execSettings(choice)
-    return
-
-# Settings Menu functions
-def exitSettings():
-    menuActions['mainMenu']()
-
-def searchNotes():
-    global ONLYDIRECT
-    input_str = input("Search for string in notes?(y/n) ")
-    if input_str == "y":
-        ONLYDIRECT = True
-        print("Now you only see 1:1 offers")
-    else:
-        ONLYDIRECT = False
-        print("You are still viewing all offers")
-    
-    print('\n\n\n')
-    settingsMenu()
-
-def viewRecent():
-    global ONLYRECENT
-    input_str = input("Only view offers from the last hour?(y/n) ")
-    if input_str == "y":
-        ONLYRECENT = True
-        print("Now you only see recent offers")
-    else:
-        ONLYRECENT = False
-        print("You are still viewing offers from all times")
-
-    print('\n\n\n')
-    settingsMenu()
-
-# Execute settings menu
-def execSettings(choice):
-    os.system('clear')
-    ch = choice.lower()
-    if ch == '':
-        settingsActions['settingsMenu']()
-    else:
-        try:
-            settingsActions[ch]()
-        except KeyError:
-            print ("Invalid selection, please try again.\n")
-            settingsActions['settingsMenu']()
-    return
-
-settingsActions = {
-    "settingsMenu": settingsMenu,
-    "1": searchNotes,
-    "2": viewRecent,
-    "0": exitSettings
-}
-
-
 # ------------------------------------------------------------------------------
 # MAIN
+# ------------------------------------------------------------------------------
+
 if __name__ == '__main__':
     os.system("clear")
     # Get Item-Prices from Website
     while True:
-        price_ind = getPrices()
-        if price_ind != {}:
+        PRICE_IND = getPrices()
+        if PRICE_IND != {}:
             break
     
     mainMenu()
-    print(offers_list)
-    s = sortOffers(offers_list, price_ind, ONLYRECENT, ONLYDIRECT)
-    prettyPrint(s, item_str)
