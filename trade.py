@@ -66,19 +66,20 @@ def getPrices():
     prices = {}
     price_html = requests.get('https://www.rltprices.com/ps4')
     price_tree = html.fromstring(price_html.content)
-    for i in range(1,493):
-        element = price_tree.xpath('/html/body/div[2]/div[2]/div[2]/div[2]/div[%s]/div[2]/div/text()' % i)
-        
-        # element[1] is the string that contains the price range
-        # If there is no price then the length of element[1] is <3
-        if element[1] != [] and len(element[1])>2:
+    items = price_tree.xpath('//*[@class="rocket-league-item "]')
+    for i in items:
+        name = i.xpath('.//*[@class="itemName"]/text()')[0]
+        #element = price_tree.xpath('/html/body/div[2]/div[2]/div[2]/div[2]/div[%s]/div[2]/div/text()' % i)
+        priceRange = i.xpath('./div[2]/div[2]/text()')
+        # If there is no price then the length of priceRange is < 3
+        if priceRange != [] and len(priceRange[0])>2:
             # Calculate the average price out of the given price range
-            range_str = element[1].split()
-            av_price = ( float(range_str[0]) + float(range_str[2]) ) / 2.0 
+            range_arr = priceRange[0].split()
+            av_price = ( float(range_arr[0]) + float(range_arr[2]) ) / 2.0 
             av_price = roundTo2Dig(av_price)
         else:
             av_price = 0.0
-        prices[element[0]] = av_price
+        prices[name] = av_price
     return prices
 
 def getIndex():
